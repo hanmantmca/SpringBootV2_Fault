@@ -13,10 +13,12 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClient.Builder;
 
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 import com.springboot1.moviecatalogueservice.model.CatalogItem;
-import com.springboot1.moviecatalogueservice.model.Movie;
 import com.springboot1.moviecatalogueservice.model.Rating;
 import com.springboot1.moviecatalogueservice.model.UserRating;
+import com.springboot1.moviecatalogueservice.service.MovieInfo;
+import com.springboot1.moviecatalogueservice.service.UserRatingInfo;
 
 @RestController
 @RequestMapping("/catalog")
@@ -27,21 +29,24 @@ public class MovieCatalogueResource {
 	RestTemplate restTemplate;
 	
 	@Autowired
+	MovieInfo movieInfo;
+	
+	@Autowired
+	UserRatingInfo userRatingInfo;
+	
+	@Autowired
 	WebClient.Builder webClientBuilder;
 	
 	@GetMapping("/{userId}")
 	public List<CatalogItem> getCatalogs(@PathVariable String userId){
 		
+		UserRating userRating = userRatingInfo.getUserRating(userId);
 		
-		UserRating userRating = restTemplate.getForObject("http://movie-rating-service/movieRatings/user/"+ userId , UserRating.class);  
-		
-		return userRating.getUserReating().stream().map(rating ->{
-			Movie movie = restTemplate.getForObject("http://movie-info-service/movieInfo/"+rating.getMovieId() , Movie.class);
-			
-		return	new CatalogItem(movie.getName(), movie.getName() + " Desc", rating.getRating());
-		}).collect(Collectors.toList());
-		
+		return userRating.getUserReating().stream()
+				.map(rating -> movieInfo.getCatalogItem(rating))
+				.collect(Collectors.toList());
 	}
+	
 
 }
 
